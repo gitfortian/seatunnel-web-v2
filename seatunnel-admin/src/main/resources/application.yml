@@ -6,7 +6,7 @@ server:
 
 seatunnel:
   client:
-    base-url: http://192.168.1.115:8080
+    base-url: http://127.0.0.1:8080
     context-path:
     connect-timeout-ms: 2000
     read-timeout-ms: 10000
@@ -19,12 +19,11 @@ spring:
   application:
     name: seatunnel-web
   profiles:
-    active: dev
+    active: ${DATASOURCE_DIALECT:h2}  # 通过环境变量指定数据库方言，可选值: mariadb, h2
   main:
     allow-bean-definition-overriding: true
   jackson:
     time-zone: GMT+8
-
   ai:
     deepseek:
       api-key: sk-****
@@ -35,28 +34,8 @@ spring:
       embedding:
         enabled: false
 
-
-  datasource:
-    cockpit:
-      jdbc-url: jdbc:mysql://192.168.1.113:3306/seatunnel_web?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8
-      username: root
-      password: 123456
-      driver-class-name: com.mysql.cj.jdbc.Driver
-      maximum-pool-size: 20
-      idle-timeout: 30000
-      connection-test-query: SELECT 1
-
-  quartz:
-    job-store-type: jdbc
-    properties:
-      org:
-        quartz:
-          scheduler:
-            instanceName: seatunnel-web
-            instanceId: AUTO
-          threadPool:
-            threadCount: 40
-
+datasource:
+  dialect: ${DATASOURCE_DIALECT:h2}  # 数据库方言，可选值: mariadb, h2
 
 logging:
   config: classpath:logback-spring.xml
