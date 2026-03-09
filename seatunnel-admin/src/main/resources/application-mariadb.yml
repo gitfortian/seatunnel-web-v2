@@ -1,0 +1,40 @@
+# MariaDB/MySQL 数据库配置
+datasource:
+  dialect: mariadb
+
+spring:
+  datasource:
+    cockpit:
+      jdbc-url: jdbc:mysql://127.0.0.1:3306/seatunnel_web?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8
+      username: root
+      password: 123456
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      maximum-pool-size: 20
+      idle-timeout: 30000
+      connection-test-query: SELECT 1
+
+  quartz:
+    job-store-type: jdbc
+    properties:
+      org:
+        quartz:
+          scheduler:
+            instanceName: seatunnel-web
+            instanceId: AUTO
+          threadPool:
+            threadCount: 40
+          jobStore:
+            class: org.quartz.impl.jdbcjobstore.JobStoreTX
+            driverDelegateClass: org.quartz.impl.jdbcjobstore.StdJDBCDelegate
+            tablePrefix: QRTZ_
+            isClustered: false
+            dataSource: cockpit
+          dataSource:
+            cockpit:
+              provider: hikaricp
+              driver: com.mysql.cj.jdbc.Driver
+              URL: jdbc:mysql://127.0.0.1:3306/seatunnel_web?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8
+              user: root
+              password: 123456
+              maxConnections: 20
+              validationQuery: SELECT 1
