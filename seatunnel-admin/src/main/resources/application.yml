@@ -19,7 +19,9 @@ spring:
   application:
     name: seatunnel-web
   profiles:
-    active: dev
+    active: h2
+  # Database configuration will be loaded from profile-specific files
+  # application-h2.yml or application-mysql.yml
   main:
     allow-bean-definition-overriding: true
   jackson:
@@ -34,29 +36,6 @@ spring:
           model: deepseek-chat
       embedding:
         enabled: false
-
-
-  datasource:
-    cockpit:
-      jdbc-url: jdbc:mysql://192.168.1.113:3306/seatunnel_web?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8
-      username: root
-      password: 123456
-      driver-class-name: com.mysql.cj.jdbc.Driver
-      maximum-pool-size: 20
-      idle-timeout: 30000
-      connection-test-query: SELECT 1
-
-  quartz:
-    job-store-type: jdbc
-    properties:
-      org:
-        quartz:
-          scheduler:
-            instanceName: seatunnel-web
-            instanceId: AUTO
-          threadPool:
-            threadCount: 40
-
 
 logging:
   config: classpath:logback-spring.xml

@@ -14,13 +14,13 @@ import java.sql.SQLException;
 public class MySQLUpgradeDao extends UpgradeDao {
     public static final Logger logger = LoggerFactory.getLogger(MySQLUpgradeDao.class);
 
-    private MySQLUpgradeDao(DataSource dataSource) {
+    public MySQLUpgradeDao(DataSource dataSource) {
         super(dataSource);
     }
 
     @Override
     protected String initSqlPath() {
-        return "create/release-1.0.0_schema/mysql";
+        return "sql/seatunnel_mysql.sql";
     }
 
     @Override

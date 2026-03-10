@@ -9,6 +9,8 @@ import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.baomidou.mybatisplus.extension.spring.MybatisSqlSessionFactoryBean;
 import org.apache.ibatis.logging.stdout.StdOutImpl;
+import org.apache.ibatis.mapping.DatabaseIdProvider;
+import org.apache.ibatis.mapping.VendorDatabaseIdProvider;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.apache.ibatis.type.JdbcType;
 import org.mybatis.spring.SqlSessionTemplate;
@@ -19,24 +21,26 @@ import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 
 import javax.sql.DataSource;
+import java.util.Properties;
 
 /**
  * Spring configuration for DataSource, MyBatis, and MyBatis-Plus integration.
+ * Implements database plugin pattern similar to Apache DolphinScheduler.
  *
  * <p>
  * This configuration sets up:
  * </p>
  * <ul>
- *     <li>Primary DataSource using Spring Boot configuration properties</li>
- *     <li>Global MyBatis-Plus configuration</li>
- *     <li>SqlSessionFactory with mapper XML scanning and MyBatis configuration</li>
+ *     <li>Profile-based DataSource configuration</li>
+ *     <li>Database-specific MyBatis-Plus configuration</li>
+ *     <li>SqlSessionFactory with database ID provider</li>
  *     <li>Transaction management</li>
- *     <li>SqlSessionTemplate for MyBatis usage</li>
- *     <li>Pagination interceptor for MySQL using MybatisPlusInterceptor</li>
+ *     <li>Database-specific pagination interceptors</li>
  * </ul>
  */
 @Configuration
@@ -44,9 +48,10 @@ import javax.sql.DataSource;
 public class DataSourceConfig {
 
     /**
-     * Primary DataSource bean configured via properties prefixed with "spring.datasource.cockpit".
+     * Profile-based DataSource bean.
+     * Configuration is loaded from spring.datasource.cockpit properties.
      *
-     * @return DataSource instance
+     * @return DataSource instance based on active profile
      */
     @Bean(name = "dataSource")
     @ConfigurationProperties(prefix = "spring.datasource.cockpit")
@@ -75,25 +80,45 @@ public class DataSourceConfig {
     }
 
     /**
+     * Database ID provider for MyBatis to support database-specific SQL.
+     *
+     * @return DatabaseIdProvider instance
+     */
+    @Bean
+    public DatabaseIdProvider databaseIdProvider() {
+        DatabaseIdProvider databaseIdProvider = new VendorDatabaseIdProvider();
+        Properties properties = new Properties();
+        properties.setProperty("MySQL", "mysql");
+        properties.setProperty("H2", "h2");
+        databaseIdProvider.setProperties(properties);
+        return databaseIdProvider;
+    }
+
+    /**
      * Primary SqlSessionFactory configured with:
      * <ul>
      *     <li>DataSource</li>
      *     <li>Mapper XML locations</li>
      *     <li>MyBatis configuration options (camel-case mapping, logging, enum handler, etc.)</li>
-     *     <li>MybatisPlusInterceptor with pagination plugin</li>
+     *     <li>Database-specific MybatisPlusInterceptor with pagination plugin</li>
+     *     <li>Database ID provider for database-specific SQL</li>
      * </ul>
      *
      * @param dataSource injected DataSource
+     * @param dbType database type for pagination configuration
      * @return SqlSessionFactory instance
      * @throws Exception if bean creation fails
      */
     @Bean(name = "sqlSessionFactory")
     @Primary
-    public SqlSessionFactory sqlSessionFactory(@Qualifier("dataSource") DataSource dataSource) throws Exception {
+    public SqlSessionFactory sqlSessionFactory(
+            @Qualifier("dataSource") DataSource dataSource,
+            DbType dbType) throws Exception {
         MybatisSqlSessionFactoryBean bean = new MybatisSqlSessionFactoryBean();
         bean.setDataSource(dataSource);
         bean.setMapperLocations(new PathMatchingResourcePatternResolver().getResources("classpath*:mapper/*.xml"));
         bean.setGlobalConfig(globalConfig());
+        bean.setDatabaseIdProvider(databaseIdProvider());
 
         // MyBatis core configuration
         MybatisConfiguration configuration = new MybatisConfiguration();
@@ -104,8 +129,8 @@ public class DataSourceConfig {
         configuration.setDefaultEnumTypeHandler(MybatisEnumTypeHandler.class); // Enum handler
         bean.setConfiguration(configuration);
 
-        // Add MybatisPlusInterceptor with pagination plugin
-        bean.setPlugins(mybatisPlusInterceptor());
+        // Add database-specific MybatisPlusInterceptor with pagination plugin
+        bean.setPlugins(mybatisPlusInterceptor(dbType));
         return bean.getObject();
     }
 
@@ -134,16 +159,41 @@ public class DataSourceConfig {
     }
 
     /**
-     * MybatisPlusInterceptor with pagination support for MySQL.
+     * Database-specific MybatisPlusInterceptor with pagination support.
      * This replaces the deprecated PaginationInterceptor in MyBatis-Plus 3.5+.
      *
+     * @param dbType database type for pagination configuration
      * @return MybatisPlusInterceptor instance
      */
     @Bean
-    public MybatisPlusInterceptor mybatisPlusInterceptor() {
+    public MybatisPlusInterceptor mybatisPlusInterceptor(DbType dbType) {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
-        // Add pagination interceptor for MySQL
-        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
+        // Add pagination interceptor for specific database type
+        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(dbType));
         return interceptor;
+    }
+
+    /**
+     * MySQL database type bean activated when mysql profile is active.
+     *
+     * @return DbType.MYSQL
+     */
+    @Bean
+    @Primary
+    @Profile("mysql")
+    public DbType mysqlDbType() {
+        return DbType.MYSQL;
+    }
+
+    /**
+     * H2 database type bean activated when h2 profile is active.
+     *
+     * @return DbType.H2
+     */
+    @Bean
+    @Primary
+    @Profile("h2")
+    public DbType h2DbType() {
+        return DbType.H2;
     }
 }
